@@ -1,8 +1,36 @@
 {% extends "base.html" %}
 
-{% block title %}{{ post.title }} // FydelisTechOS{% endblock %}
+{% set clean_desc = post.subtitle if post.subtitle else (post.content[:155] | replace('\n', ' ') | replace('#', '') | replace('*', '')) %}
 
-{% block content %}
+{% block title %}{{ post.title }} // FydelisTechOS{% endblock %}
+{% block meta_description %}{{ clean_desc }}{% endblock %}
+{% block meta_keywords %}{{ post.tags if post.tags else 'FydelisTechOS, x86_64, Assembly, Kernel' }}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_title %}{{ post.title }} // FydelisTechOS{% endblock %}
+{% block og_description %}{{ clean_desc }}{% endblock %}
+{% block twitter_title %}{{ post.title }} // FydelisTechOS{% endblock %}
+{% block twitter_description %}{{ clean_desc }}{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": {{ post.title | tojson }},
+  "description": {{ clean_desc | tojson }},
+  "articleSection": {{ post.category | tojson }},
+  "author": {
+    "@type": "Person",
+    "name": "Adiel Fontes"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "FydelisTechOS"
+  },
+  "mainEntityOfPage": {{ request.base_url | tojson }}
+}
+</script>
+{% endblock %}
 <div style="max-width: 860px; margin: 0 auto;">
     <div style="margin-bottom: 1rem;">
         <a href="{{ url_for('index') }}" class="btn btn-outline">← Voltar para o Feed</a>
