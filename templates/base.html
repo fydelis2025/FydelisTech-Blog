@@ -25,9 +25,9 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{% block twitter_title %}FydelisTechOS // DevLog &amp; Artigos{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}Documentação e artigos técnicos sobre o sistema operacional bare-metal FydelisTechOS.{% endblock %}">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}FydelisTechOS // DevLog & Artigos{% endblock %}</title>
+
+    {% block extra_head %}{% endblock %}
+
     <style>
         :root {
             --bg-dark: #090512;
@@ -41,7 +41,11 @@
             --silver-muted: #94a3b8;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
         body {
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
