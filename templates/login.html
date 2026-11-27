@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Login // FydelisTechOS{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
 
 {% block content %}
 <div style="max-width: 440px; margin: 2rem auto;">
@@ -10,7 +11,7 @@
             Autentique-se para criar, editar ou remover publicações.
         </p>
 
-        <form method="POST">
+        <form method="POST" action="{{ url_for('login', next=request.args.get('next')) }}">
             <div style="margin-bottom: 1.1rem;">
                 <label style="display:block; margin-bottom:0.4rem; color: var(--cyan-neon); font-weight:600; font-size:0.9rem;">Usuário</label>
                 <input type="text" name="username" required autofocus
@@ -25,6 +26,14 @@
 
             <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Entrar no Painel</button>
         </form>
+
+        {% if can_register %}
+            <div style="margin-top: 1.2rem; text-align: center;">
+                <a href="{{ url_for('register', token=register_token if register_token else None) }}" style="color: var(--cyan-neon); font-size: 0.88rem; text-decoration: none;">
+                    Não tem conta? Cadastrar login &rarr;
+                </a>
+            </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
