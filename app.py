@@ -19,13 +19,19 @@ from werkzeug.security import check_password_hash, generate_password_hash
 import markdown
 import bleach
 
+try:
+    import psycopg
+    from psycopg.rows import dict_row
+    HAS_PSYCOPG = True
+except ImportError:
+    HAS_PSYCOPG = False
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 DB_PATH = os.environ.get("DB_PATH", "fydelistech.db")
-# Controle opcional para cadastro no Render:
-# - ALLOW_REGISTER="true" libera /cadastro (ou se ainda não existir nenhum usuário no banco)
-# - REGISTER_TOKEN="..." exige ?token=... na URL se definido
+
 ALLOW_REGISTER = os.environ.get("ALLOW_REGISTER", "true").strip().lower() in ("1", "true", "yes")
 REGISTER_TOKEN = os.environ.get("REGISTER_TOKEN", "").strip()
 
@@ -72,39 +78,101 @@ ALLOWED_ATTRIBUTES = {
 ALLOWED_PROTOCOLS = ["http", "https", "data"]
 
 
+class DBConnection:
+    """Wrapper simples para aceitar placeholders '?' tanto no PostgreSQL quanto no SQLite."""
+
+    def __init__(self):
+        self.is_pg = bool(DATABASE_URL)
+        if self.is_pg:
+            if not HAS_PSYCOPG:
+                raise RuntimeError("Instale 'psycopg[binary]' no requirements.txt para usar PostgreSQL.")
+            self.conn = psycopg.connect(DATABASE_URL, row_factory=dict_row)
+        else:
+            db_dir = os.path.dirname(DB_PATH)
+            if db_dir:
+                os.makedirs(db_dir, exist_ok=True)
+            self.conn = sqlite3.connect(DB_PATH)
+            self.conn.row_factory = sqlite3.Row
+
+    def _sql(self, query: str) -> str:
+        if self.is_pg:
+            return query.replace("?", "%s")
+        return query
+
+    def execute(self, query: str, params=()):
+        sql = self._sql(query)
+        if self.is_pg:
+            cur = self.conn.cursor()
+            cur.execute(sql, params)
+            return cur
+        return self.conn.execute(sql, params)
+
+    def commit(self):
+        self.conn.commit()
+
+    def close(self):
+        self.conn.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type:
+            self.conn.rollback()
+        else:
+            self.conn.commit()
+        self.close()
+
+
 def get_db():
-    db_dir = os.path.dirname(DB_PATH)
-    if db_dir:
-        os.makedirs(db_dir, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    return DBConnection()
 
 
 def init_db():
     with get_db() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL UNIQUE,
-                password_hash TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            )
-        """)
+        if conn.is_pg:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS posts (
+                    id SERIAL PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    subtitle TEXT,
+                    category TEXT NOT NULL,
+                    tags TEXT,
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+            """)
+        else:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS posts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    subtitle TEXT,
+                    category TEXT NOT NULL,
+                    tags TEXT,
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+            """)
 
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS posts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                subtitle TEXT,
-                category TEXT NOT NULL,
-                tags TEXT,
-                content TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            )
-        """)
-
-        count = conn.execute("SELECT COUNT(*) FROM posts").fetchone()[0]
+        row = conn.execute("SELECT COUNT(*) AS cnt FROM posts").fetchone()
+        count = row["cnt"] if conn.is_pg else row[0]
         if count == 0:
             conn.execute(
                 """
@@ -137,7 +205,6 @@ def init_db():
                     datetime.now().strftime("%d/%m/%Y %H:%M"),
                 ),
             )
-        conn.commit()
 
 
 init_db()
@@ -145,7 +212,8 @@ init_db()
 
 def users_count():
     with get_db() as conn:
-        return conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        row = conn.execute("SELECT COUNT(*) AS cnt FROM users").fetchone()
+        return row["cnt"] if conn.is_pg else row[0]
 
 
 def can_register():
@@ -254,8 +322,7 @@ def register():
                     """,
                     (username, password_hash, datetime.now().strftime("%d/%m/%Y %H:%M")),
                 )
-                conn.commit()
-        except sqlite3.IntegrityError:
+        except Exception:
             flash("Esse nome de usuário já está em uso.", "error")
             return render_template("register.html", token=token_param)
 
@@ -373,7 +440,6 @@ def create_post():
                     datetime.now().strftime("%d/%m/%Y %H:%M"),
                 ),
             )
-            conn.commit()
 
         flash("Publicação gravada com sucesso!", "success")
         return redirect(url_for("index"))
@@ -411,7 +477,6 @@ def edit_post(post_id):
                 """,
                 (title, subtitle, category, tags, content, post_id),
             )
-            conn.commit()
 
         flash("Publicação atualizada!", "success")
         return redirect(url_for("view_post", post_id=post_id))
@@ -424,7 +489,6 @@ def edit_post(post_id):
 def delete_post(post_id):
     with get_db() as conn:
         conn.execute("DELETE FROM posts WHERE id = ?", (post_id,))
-        conn.commit()
     flash("Publicação removida.", "success")
     return redirect(url_for("index"))
 
