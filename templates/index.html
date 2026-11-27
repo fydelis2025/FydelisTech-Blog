@@ -204,11 +204,21 @@
         text-decoration: none;
         font-weight: 700;
         display: block;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.65rem;
     }
 
     .post-title:hover {
         color: var(--cyan-neon);
+    }
+
+    .post-thumb {
+        width: 100%;
+        height: 175px;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid rgba(0, 240, 255, 0.25);
+        margin-bottom: 0.85rem;
+        display: block;
     }
 
     .post-excerpt {
@@ -241,6 +251,7 @@
         flex-wrap: wrap;
         gap: 1.25rem;
     }
+
     @media (max-width: 600px) {
         .hero { padding: 1.35rem; }
         .hero h1 { font-size: 1.45rem; }
@@ -327,15 +338,24 @@
 {% if posts %}
     <div class="posts-grid">
         {% for post in posts %}
+            {% set thumb = post.content | first_image %}
             <article class="glass-card post-card">
                 <div>
                     <div class="post-meta">
                         <span class="badge-cat">{{ post.category }}</span>
                         <span style="color: var(--silver-muted);">{{ post.created_at }}</span>
                     </div>
+
                     <a href="{{ url_for('view_post', post_id=post.id) }}" class="post-title">{{ post.title }}</a>
+
+                    {% if thumb %}
+                        <a href="{{ url_for('view_post', post_id=post.id) }}">
+                            <img src="{{ thumb }}" alt="{{ post.title }}" class="post-thumb" loading="lazy">
+                        </a>
+                    {% endif %}
+
                     <p class="post-excerpt">
-                        {{ post.subtitle if post.subtitle else (post.content[:145] + '...') }}
+                        {{ post.subtitle if post.subtitle else (post.content | clean_excerpt(140)) }}
                     </p>
                 </div>
 
