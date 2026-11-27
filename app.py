@@ -1,5 +1,6 @@
 import html
 import os
+import re
 import secrets
 import sqlite3
 from datetime import datetime
@@ -442,6 +443,32 @@ def render_markdown(text):
         strip=True,
     )
     return clean_html
+
+
+@app.template_filter("first_image")
+def first_image(text):
+    if not text:
+        return ""
+    md_match = re.search(r"!\[[^\]]*\]\((https?://[^\s\)]+)\)", text)
+    if md_match:
+        return md_match.group(1)
+    html_match = re.search(r'<img[^>]+src=["\'](https?://[^"\']+)["\']', text, flags=re.IGNORECASE)
+    if html_match:
+        return html_match.group(1)
+    return ""
+
+
+@app.template_filter("clean_excerpt")
+def clean_excerpt(text, limit=140):
+    if not text:
+        return ""
+    cleaned = re.sub(r"!\[[^\]]*\]\([^\)]*\)", "", text)
+    cleaned = re.sub(r"```.*?```", "", cleaned, flags=re.DOTALL)
+    cleaned = re.sub(r"[#>*`]+", "", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if len(cleaned) <= limit:
+        return cleaned
+    return cleaned[:limit].rsplit(" ", 1)[0] + "..."
 
 
 if __name__ == "__main__":
