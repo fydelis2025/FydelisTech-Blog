@@ -1,0 +1,156 @@
+﻿{% extends "base.html" %}
+
+{% block title %}{{ 'Editar Artigo' if mode == 'edit' else 'Novo Artigo' }} // FydelisTechOS{% endblock %}
+
+{% block content %}
+<style>
+    .editor-box { max-width: 880px; margin: 0 auto; }
+    .form-group { margin-bottom: 1.3rem; }
+    label.field-label { display: block; margin-bottom: 0.45rem; font-weight: 600; color: var(--cyan-neon); font-size: 0.92rem; }
+    input[type="text"], select, textarea {
+        width: 100%;
+        background: rgba(9, 5, 18, 0.85);
+        border: 1px solid rgba(157, 78, 221, 0.45);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        color: #fff;
+        font-family: inherit;
+        font-size: 0.98rem;
+        outline: none;
+    }
+    input[type="text"]:focus, select:focus, textarea:focus {
+        border-color: var(--cyan-neon);
+        box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+    }
+    textarea {
+        min-height: 330px;
+        font-family: 'Consolas', 'Fira Code', monospace;
+        line-height: 1.55;
+        resize: vertical;
+        border-radius: 0 0 8px 8px;
+    }
+    .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        padding: 0.6rem;
+        background: rgba(9, 5, 18, 0.75);
+        border: 1px solid rgba(157, 78, 221, 0.35);
+        border-bottom: none;
+        border-radius: 8px 8px 0 0;
+    }
+    .toolbar button {
+        background: rgba(255, 255, 255, 0.05);
+        color: #e2e8f0;
+        border: 1px solid rgba(0, 240, 255, 0.25);
+        padding: 0.32rem 0.6rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .toolbar button:hover {
+        background: rgba(0, 240, 255, 0.16);
+        color: var(--cyan-neon);
+    }
+</style>
+
+<div class="editor-box">
+    <div style="margin-bottom: 1rem;">
+        <a href="{{ url_for('index') }}" class="btn btn-outline">← Cancelar e Voltar</a>
+    </div>
+
+    <div class="glass-card">
+        <h2 style="margin-bottom: 1.5rem; color: #fff;">
+            {{ 'Editar Publicação' if mode == 'edit' else 'Nova Publicação (Markdown) // FydelisTechOS' }}
+        </h2>
+
+        <form method="POST">
+            <div class="form-group">
+                <label class="field-label" for="title">Título do Artigo *</label>
+                <input type="text" id="title" name="title" required value="{{ post.title if post else '' }}">
+            </div>
+
+            <div class="form-group">
+                <label class="field-label" for="subtitle">Subtítulo / Resumo Curto</label>
+                <input type="text" id="subtitle" name="subtitle" value="{{ post.subtitle if post else '' }}">
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+                <div class="form-group">
+                    <label class="field-label" for="category">Categoria</label>
+                    <select id="category" name="category">
+                        {% set current_cat = post.category if post else 'Artigos' %}
+                        {% for cat in ['Artigos', 'Dicas', 'Kernel & Assembly', 'Drivers & Rede', 'Segurança', 'Releases'] %}
+                            <option value="{{ cat }}" {% if current_cat == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="field-label" for="tags">Tags (separadas por vírgula)</label>
+                    <input type="text" id="tags" name="tags" value="{{ post.tags if post else '' }}" placeholder="x86_64, NASM, C, FydelTerm">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="field-label" for="content">Conteúdo em Markdown *</label>
+                <div class="toolbar">
+                    <button type="button" onclick="wrapText('**', '**')"><b>B</b> Negrito</button>
+                    <button type="button" onclick="wrapText('*', '*')"><i>I</i> Itálico</button>
+                    <button type="button" onclick="wrapText('***', '***')"><b><i>BI</i></b> Negrito + Itálico</button>
+                    <button type="button" onclick="insertTemplate('h3')">H3</button>
+                    <button type="button" onclick="insertTemplate('left')">⬅ Esquerda</button>
+                    <button type="button" onclick="insertTemplate('center')">↔ Centro</button>
+                    <button type="button" onclick="insertTemplate('right')">➡ Direita</button>
+                    <button type="button" onclick="insertTemplate('image')">🖼 Imagem</button>
+                    <button type="button" onclick="insertTemplate('table')">📊 Tabela</button>
+                    <button type="button" onclick="insertTemplate('code')">{ } Código</button>
+                </div>
+                <textarea id="content" name="content" required placeholder="Escreva em Markdown: **negrito**, *itálico*, tabelas, ![alt](url) e blocos de código ```...```">{{ post.content if post else '' }}</textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button type="submit" class="btn btn-primary">
+                    {{ 'Salvar Alterações' if mode == 'edit' else 'Publicar Agora' }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const TEMPLATES = {
+    h3: "\n### Subtítulo\n",
+    left: '\n<div style="text-align: left;">\nTexto à esquerda\n</div>\n',
+    center: '\n<div style="text-align: center;">\nTexto centralizado\n</div>\n',
+    right: '\n<div style="text-align: right;">\nTexto à direita\n</div>\n',
+    image: "\n![Descrição da imagem](https://URL_DA_IMAGEM)\n",
+    table: "\n| Coluna 1 | Coluna 2 | Coluna 3 |\n| :--- | :---: | ---: |\n| Dado A | Dado B | Dado C |\n",
+    code: "\n```nasm\n; Código Assembly / C\n```\n"
+};
+
+function insertTemplate(key) {
+    const textarea = document.getElementById('content');
+    const snippet = TEMPLATES[key] || "";
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    textarea.value = textarea.value.substring(0, start) + snippet + textarea.value.substring(end);
+    textarea.focus();
+    const cursorPos = start + snippet.length;
+    textarea.setSelectionRange(cursorPos, cursorPos);
+}
+
+function wrapText(prefix, suffix) {
+    const textarea = document.getElementById('content');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = textarea.value.substring(start, end) || 'texto';
+    const inserted = prefix + selected + suffix;
+    textarea.value = textarea.value.substring(0, start) + inserted + textarea.value.substring(end);
+    textarea.focus();
+    const cursorPos = start + inserted.length;
+    textarea.setSelectionRange(cursorPos, cursorPos);
+}
+</script>
+{% endblock %}

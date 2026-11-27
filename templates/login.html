@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Login // FydelisTechOS{% endblock %}
+
+{% block content %}
+<div style="max-width: 440px; margin: 2rem auto;">
+    <div class="glass-card">
+        <h2 style="color: #fff; margin-bottom: 0.4rem;">Acesso ao Editor</h2>
+        <p style="color: var(--silver-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+            Autentique-se para criar, editar ou remover publicações.
+        </p>
+
+        <form method="POST">
+            <div style="margin-bottom: 1.1rem;">
+                <label style="display:block; margin-bottom:0.4rem; color: var(--cyan-neon); font-weight:600; font-size:0.9rem;">Usuário</label>
+                <input type="text" name="username" required autofocus
+                       style="width:100%; padding:0.7rem 0.9rem; border-radius:8px; background:rgba(9,5,18,0.85); border:1px solid rgba(157,78,221,0.45); color:#fff;">
+            </div>
+
+            <div style="margin-bottom: 1.4rem;">
+                <label style="display:block; margin-bottom:0.4rem; color: var(--cyan-neon); font-weight:600; font-size:0.9rem;">Senha</label>
+                <input type="password" name="password" required
+                       style="width:100%; padding:0.7rem 0.9rem; border-radius:8px; background:rgba(9,5,18,0.85); border:1px solid rgba(157,78,221,0.45); color:#fff;">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Entrar no Painel</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
