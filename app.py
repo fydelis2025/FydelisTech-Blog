@@ -21,14 +21,12 @@ import bleach
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
-ADMIN_USER = os.environ.get("ADMIN_USER", "").strip()
-ADMIN_PASS = os.environ.get("ADMIN_PASS", "")
-ADMIN_PASS_HASH = os.environ.get("ADMIN_PASS_HASH", "").strip()
-
-if not ADMIN_PASS_HASH and ADMIN_PASS:
-    ADMIN_PASS_HASH = generate_password_hash(ADMIN_PASS)
-
 DB_PATH = os.environ.get("DB_PATH", "fydelistech.db")
+# Controle opcional para cadastro no Render:
+# - ALLOW_REGISTER="true" libera /cadastro (ou se ainda não existir nenhum usuário no banco)
+# - REGISTER_TOKEN="..." exige ?token=... na URL se definido
+ALLOW_REGISTER = os.environ.get("ALLOW_REGISTER", "true").strip().lower() in ("1", "true", "yes")
+REGISTER_TOKEN = os.environ.get("REGISTER_TOKEN", "").strip()
 
 ALLOWED_TAGS = list(bleach.sanitizer.ALLOWED_TAGS) + [
     "p",
@@ -85,6 +83,15 @@ def get_db():
 def init_db():
     with get_db() as conn:
         conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS posts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
@@ -95,6 +102,7 @@ def init_db():
                 created_at TEXT NOT NULL
             )
         """)
+
         count = conn.execute("SELECT COUNT(*) FROM posts").fetchone()[0]
         if count == 0:
             conn.execute(
@@ -131,8 +139,23 @@ def init_db():
         conn.commit()
 
 
-# Garante inicialização mesmo rodando via Gunicorn no Render
 init_db()
+
+
+def users_count():
+    with get_db() as conn:
+        return conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+
+
+def can_register():
+    if users_count() == 0:
+        return True
+    if not ALLOW_REGISTER:
+        return False
+    if REGISTER_TOKEN:
+        token = request.args.get("token", "") or request.form.get("token", "")
+        return token == REGISTER_TOKEN
+    return True
 
 
 def login_required(f):
@@ -153,6 +176,7 @@ def robots_txt():
         "User-agent: *\n"
         "Allow: /\n"
         "Disallow: /login\n"
+        "Disallow: /cadastro\n"
         "Disallow: /novo\n"
         "Disallow: /editar/\n"
         "Disallow: /excluir/\n"
@@ -191,6 +215,55 @@ def sitemap_xml():
     return Response(xml, mimetype="application/xml")
 
 
+@app.route("/cadastro", methods=["GET", "POST"])
+def register():
+    if not can_register():
+        flash("Cadastro desativado ou token inválido.", "error")
+        return redirect(url_for("login"))
+
+    token_param = request.args.get("token", "") or request.form.get("token", "")
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        password_confirm = request.form.get("password_confirm", "")
+        cipher_method = request.form.get("cipher_method", "scrypt")
+
+        if len(username) < 3:
+            flash("O usuário deve ter pelo menos 3 caracteres.", "error")
+            return render_template("register.html", token=token_param)
+
+        if len(password) < 6:
+            flash("A senha deve ter pelo menos 6 caracteres.", "error")
+            return render_template("register.html", token=token_param)
+
+        if password != password_confirm:
+            flash("As senhas não conferem.", "error")
+            return render_template("register.html", token=token_param)
+
+        method = "pbkdf2:sha256" if cipher_method == "pbkdf2" else "scrypt"
+        password_hash = generate_password_hash(password, method=method)
+
+        try:
+            with get_db() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO users (username, password_hash, created_at)
+                    VALUES (?, ?, ?)
+                    """,
+                    (username, password_hash, datetime.now().strftime("%d/%m/%Y %H:%M")),
+                )
+                conn.commit()
+        except sqlite3.IntegrityError:
+            flash("Esse nome de usuário já está em uso.", "error")
+            return render_template("register.html", token=token_param)
+
+        flash("Conta criada com senha criptografada! Faça login para postar.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("register.html", token=token_param)
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if session.get("logged_in"):
@@ -201,19 +274,21 @@ def login():
         password = request.form.get("password", "")
         next_url = request.args.get("next") or url_for("index")
 
-        if not ADMIN_USER or not ADMIN_PASS_HASH:
-            flash("Credenciais de administrador não configuradas no ambiente.", "error")
-            return render_template("login.html")
+        with get_db() as conn:
+            user = conn.execute(
+                "SELECT id, username, password_hash FROM users WHERE username = ?",
+                (username,),
+            ).fetchone()
 
-        if username == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, password):
+        if user and check_password_hash(user["password_hash"], password):
             session["logged_in"] = True
-            session["username"] = username
+            session["username"] = user["username"]
             flash("Sessão iniciada com sucesso.", "success")
             return redirect(next_url)
         else:
             flash("Usuário ou senha inválidos.", "error")
 
-    return render_template("login.html")
+    return render_template("login.html", can_register=can_register(), register_token=REGISTER_TOKEN)
 
 
 @app.route("/logout", methods=["POST"])
