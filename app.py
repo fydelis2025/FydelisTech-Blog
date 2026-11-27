@@ -1,9 +1,12 @@
+import html
 import os
+import secrets
 import sqlite3
 from datetime import datetime
 from functools import wraps
 from flask import (
     Flask,
+    Response,
     render_template,
     request,
     redirect,
@@ -11,14 +14,20 @@ from flask import (
     flash,
     session,
 )
+from werkzeug.security import check_password_hash, generate_password_hash
 import markdown
 import bleach
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "fydelistechos_dev_secret_change_in_prod")
+app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
-ADMIN_USER = os.environ.get("ADMIN_USER", "fydelis")
-ADMIN_PASS = os.environ.get("ADMIN_PASS", "fydelistech2026")
+ADMIN_USER = os.environ.get("ADMIN_USER", "").strip()
+ADMIN_PASS = os.environ.get("ADMIN_PASS", "")
+ADMIN_PASS_HASH = os.environ.get("ADMIN_PASS_HASH", "").strip()
+
+if not ADMIN_PASS_HASH and ADMIN_PASS:
+    ADMIN_PASS_HASH = generate_password_hash(ADMIN_PASS)
+
 DB_PATH = os.environ.get("DB_PATH", "fydelistech.db")
 
 ALLOWED_TAGS = list(bleach.sanitizer.ALLOWED_TAGS) + [
@@ -137,6 +146,51 @@ def login_required(f):
     return decorated_function
 
 
+@app.route("/robots.txt")
+def robots_txt():
+    base_url = request.url_root.rstrip("/")
+    content = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /login\n"
+        "Disallow: /novo\n"
+        "Disallow: /editar/\n"
+        "Disallow: /excluir/\n"
+        f"Sitemap: {base_url}/sitemap.xml\n"
+    )
+    return Response(content, mimetype="text/plain")
+
+
+@app.route("/sitemap.xml")
+def sitemap_xml():
+    base_url = html.escape(request.url_root.rstrip("/"))
+    with get_db() as conn:
+        posts = conn.execute("SELECT id, created_at FROM posts ORDER BY id DESC").fetchall()
+
+    urls = [
+        f"  <url><loc>{base_url}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>"
+    ]
+    for p in posts:
+        lastmod_tag = ""
+        try:
+            dt = datetime.strptime(p["created_at"], "%d/%m/%Y %H:%M")
+            lastmod_tag = f"<lastmod>{dt.strftime('%Y-%m-%d')}</lastmod>"
+        except (ValueError, TypeError):
+            pass
+
+        urls.append(
+            f"  <url><loc>{base_url}/post/{p['id']}</loc>{lastmod_tag}<changefreq>weekly</changefreq><priority>0.8</priority></url>"
+        )
+
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(urls)
+        + "\n</urlset>"
+    )
+    return Response(xml, mimetype="application/xml")
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if session.get("logged_in"):
@@ -147,7 +201,11 @@ def login():
         password = request.form.get("password", "")
         next_url = request.args.get("next") or url_for("index")
 
-        if username == ADMIN_USER and password == ADMIN_PASS:
+        if not ADMIN_USER or not ADMIN_PASS_HASH:
+            flash("Credenciais de administrador não configuradas no ambiente.", "error")
+            return render_template("login.html")
+
+        if username == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, password):
             session["logged_in"] = True
             session["username"] = username
             flash("Sessão iniciada com sucesso.", "success")
