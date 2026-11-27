@@ -241,6 +241,13 @@
         flex-wrap: wrap;
         gap: 1.25rem;
     }
+    @media (max-width: 600px) {
+        .hero { padding: 1.35rem; }
+        .hero h1 { font-size: 1.45rem; }
+        .posts-grid { grid-template-columns: 1fr; }
+        .search-form { width: 100%; }
+        .search-input { min-width: 0; flex: 1; }
+    }
 </style>
 
 <section class="hero">
