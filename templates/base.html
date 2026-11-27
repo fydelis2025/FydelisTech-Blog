@@ -2,6 +2,30 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>{% block title %}FydelisTechOS // Sistema Operacional Bare-Metal x86_64 &amp; DevLog{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}Portal oficial do FydelisTechOS: artigos técnicos sobre sistema operacional bare-metal em Assembly x86_64 (NASM) e C, FydelTerm, FYFIRE, FYDB, drivers e segurança.{% endblock %}">
+    <meta name="keywords" content="{% block meta_keywords %}FydelisTechOS, Sistema Operacional, Bare-Metal, Assembly x86_64, NASM, Kernel, C, FydelTerm, FYFIRE, FYDB, Adiel Fontes, FydelisTech{% endblock %}">
+    <meta name="author" content="Adiel Fontes // FydelisTech">
+    <meta name="robots" content="{% block meta_robots %}index, follow{% endblock %}">
+    <meta name="theme-color" content="#090512">
+    <link rel="canonical" href="{{ request.base_url }}">
+
+    <!-- Open Graph / Redes Sociais (WhatsApp, LinkedIn, Facebook) -->
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:site_name" content="FydelisTechOS">
+    <meta property="og:locale" content="pt_BR">
+    <meta property="og:title" content="{% block og_title %}FydelisTechOS // Sistema Operacional Bare-Metal x86_64{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Artigos técnicos, arquitetura bare-metal em Assembly x86_64 e C, drivers nativos e segurança no FydelisTechOS.{% endblock %}">
+    <meta property="og:url" content="{{ request.base_url }}">
+
+    <!-- Twitter / X Cards -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}FydelisTechOS // DevLog &amp; Artigos{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}Documentação e artigos técnicos sobre o sistema operacional bare-metal FydelisTechOS.{% endblock %}">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}FydelisTechOS // DevLog & Artigos{% endblock %}</title>
     <style>
