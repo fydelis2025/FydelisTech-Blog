@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastrar Login // FydelisTechOS{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+
+{% block content %}
+<div style="max-width: 460px; margin: 2rem auto;">
+    <div class="glass-card">
+        <h2 style="color: #fff; margin-bottom: 0.4rem;">Cadastrar Acesso ao Editor</h2>
+        <p style="color: var(--silver-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+            Crie sua conta para publicar e editar artigos. A senha é armazenada criptografada no banco.
+        </p>
+
+        <form method="POST">
+            {% if token %}
+                <input type="hidden" name="token" value="{{ token }}">
+            {% endif %}
+
+            <div style="margin-bottom: 1.1rem;">
+                <label style="display:block; margin-bottom:0.4rem; color: var(--cyan-neon); font-weight:600; font-size:0.9rem;">Usuário *</label>
+                <input type="text" name="username" required autofocus
+                       style="width:100%; padding:0.7rem 0.9rem; border-radius:8px; background:rgba(9,5,18,0.85); border:1px solid rgba(157,78,221,0.45); color:#fff;">
+            </div>
+
+            <div style="margin-bottom: 1.1rem;">
+                <label style="display:block; margin-bottom:0.4rem; color: var(--cyan-neon); font-weight:600; font-size:0.9rem;">Algoritmo de Criptografia da Senha</label>
+                <select name="cipher_method"
+                        style="width:100%; padding:0.7rem 0.9rem; border-radius:8px; background:rgba(9,5,18,0.85); border:1px solid rgba(157,78,221,0.45); color:#fff;">
+                    <option value="scrypt" selected>scrypt (Recomendado - Hash + Salt)</option>
+                    <option value="pbkdf2">PBKDF2-SHA256 (Hash + Salt)</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 1.1rem;">
+                <label style="display:block; margin-bottom:0.4rem; color: var(--cyan-neon); font-weight:600; font-size:0.9rem;">Senha *</label>
+                <input type="password" name="password" required minlength="6"
+                       style="width:100%; padding:0.7rem 0.9rem; border-radius:8px; background:rgba(9,5,18,0.85); border:1px solid rgba(157,78,221,0.45); color:#fff;">
+            </div>
+
+            <div style="margin-bottom: 1.4rem;">
+                <label style="display:block; margin-bottom:0.4rem; color: var(--cyan-neon); font-weight:600; font-size:0.9rem;">Confirmar Senha *</label>
+                <input type="password" name="password_confirm" required minlength="6"
+                       style="width:100%; padding:0.7rem 0.9rem; border-radius:8px; background:rgba(9,5,18,0.85); border:1px solid rgba(157,78,221,0.45); color:#fff;">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Criar Conta Criptografada</button>
+        </form>
+
+        <div style="margin-top: 1.2rem; text-align: center;">
+            <a href="{{ url_for('login') }}" style="color: var(--cyan-neon); font-size: 0.88rem; text-decoration: none;">Já tem conta? Fazer login &rarr;</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
