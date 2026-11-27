@@ -316,6 +316,9 @@
     </div>
 
     <form method="GET" action="{{ url_for('index') }}" class="search-form">
+        {% if active_category %}
+            <input type="hidden" name="categoria" value="{{ active_category }}">
+        {% endif %}
         <input type="text" name="q" value="{{ search }}" placeholder="Buscar artigo, tag ou código..." class="search-input">
         <button type="submit" class="btn btn-outline">Buscar</button>
     </form>
